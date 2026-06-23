@@ -43,8 +43,9 @@ pip install -e ".[dev]"
 
 # Run CLI
 abx init --task "..." --tests tests.json
-abx run --model deepseek-chat --cycles 20
-abx report
+abx run --experiment-id <id> --cycles 20
+abx report --experiment-id <id> --winner-only
+abx list-experiments
 
 # Test
 pytest
