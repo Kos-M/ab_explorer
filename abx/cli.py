@@ -17,6 +17,7 @@ from .llm import DeepSeekClient
 from .models import Experiment, ExperimentConfig, TestCase, TestSuite
 from .storage import Storage
 from .test_generator import generate_test_suite
+from .utils import resolve_system_prompt
 
 app = typer.Typer(
     name="abx",
@@ -41,6 +42,12 @@ def init(
     output: str = typer.Option(
         "ab_explorer.db", "--output", "-o", help="SQLite database path"
     ),
+    system_prompt: str = typer.Option(
+        "", "--system-prompt", "-s",
+        help="System prompt (inline text or path to a .txt file). "
+             "If the value is an existing file path, its content is read. "
+             "Otherwise the value is used directly as inline text.",
+    ),
 ):
     """Initialize a new experiment with a test suite."""
     # Load test suite
@@ -62,12 +69,19 @@ def init(
         console.print("[red]✗ Test suite must have at least one test case[/]")
         raise typer.Exit(code=1)
 
+    # Resolve system prompt: supports both file paths and inline text
+    resolved_system_prompt = resolve_system_prompt(system_prompt) if system_prompt else ""
+
     exp_name = name or f"Experiment: {task[:40]}"
     experiment = Experiment(
         name=exp_name,
         task_description=task,
         test_suite=test_suite,
     )
+
+    if resolved_system_prompt:
+        experiment.config.system_prompt = resolved_system_prompt
+        console.print(f"  System prompt: {resolved_system_prompt[:60]}...")
 
     storage = Storage(db_path=output)
     storage.save_experiment(experiment)
