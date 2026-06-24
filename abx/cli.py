@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .experiment import ExperimentRunner
+from .kpi import find_best_candidate
 from .llm import DeepSeekClient
 from .models import Experiment, ExperimentConfig, TestCase, TestSuite
 from .storage import Storage
@@ -176,7 +177,7 @@ def report(
     candidates = storage.get_candidates(experiment_id)
 
     if winner_only and winners:
-        best = winners[0]
+        best = find_best_candidate(winners)
         console.print("\n[bold cyan]=== Winning Prompt ===[/]")
         console.print(f"\n[bold]System Prompt:[/]\n{best.prompts.system_prompt}")
         console.print(f"\n[bold]User Prompt:[/]\n{best.prompts.user_prompt}")
