@@ -53,7 +53,7 @@ def init(
     test_suite = TestSuite(
         task_description=data.get("task_description", task),
         test_cases=[TestCase(**tc) for tc in data.get("test_cases", [])],
-        evaluation_model=data.get("evaluation_model", "deepseek-chat"),
+        evaluation_model=data.get("evaluation_model", "deepseek-v4-flash"),
     )
 
     if not test_suite.test_cases:
@@ -90,7 +90,7 @@ def run(
         5, "--population", "-p", help="Population size per generation"
     ),
     model: str = typer.Option(
-        "deepseek-chat", "--model", "-m", help="DeepSeek model name"
+        "deepseek-v4-flash", "--model", "-m", help="DeepSeek model name"
     ),
     db: str = typer.Option(
         "ab_explorer.db", "--db", "-d", help="SQLite database path"

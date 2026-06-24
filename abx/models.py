@@ -32,7 +32,7 @@ class TestSuite(BaseModel):
     """A test suite containing multiple test cases for an experiment."""
     task_description: str
     test_cases: list[TestCase]
-    evaluation_model: str = "deepseek-chat"
+    evaluation_model: str = "deepseek-v4-flash"
 
 
 class Candidate(BaseModel):
@@ -56,7 +56,7 @@ class Candidate(BaseModel):
 
 class ExperimentConfig(BaseModel):
     """Configuration for an optimization experiment."""
-    model: str = "deepseek-chat"
+    model: str = "deepseek-v4-flash"
     cycles: int = 20
     population_size: int = 5
     tournament_size: int = 3
