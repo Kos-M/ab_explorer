@@ -16,6 +16,7 @@ from .kpi import find_best_candidate
 from .llm import DeepSeekClient
 from .models import Experiment, ExperimentConfig, TestCase, TestSuite
 from .storage import Storage
+from .test_generator import generate_test_suite
 
 app = typer.Typer(
     name="abx",
@@ -250,6 +251,87 @@ def list_experiments(
         )
 
     console.print(table)
+
+
+@app.command()
+def generate_tests(
+    system_prompt: str = typer.Option(
+        ..., "--system-prompt", "-s", help="System prompt text or path to a file containing it"
+    ),
+    user_prompt: str = typer.Option(
+        ..., "--user-prompt", "-u", help="User prompt text or path to a file containing it"
+    ),
+    task: str = typer.Option(
+        ..., "--task", "-t", help="Task description for the experiment"
+    ),
+    output: str = typer.Option(
+        "tests.json", "--output", "-o", help="Output path for tests.json"
+    ),
+    count: int = typer.Option(
+        5, "--count", "-c", help="Number of test cases to generate", min=1, max=20
+    ),
+    model: str = typer.Option(
+        "deepseek-v4-flash", "--model", "-m", help="DeepSeek model for test generation"
+    ),
+):
+    """Generate a tests.json file from existing prompts using LLM.
+
+    Uses the LLM to analyze your existing prompts and generate diverse
+    test cases (inputs + rubrics) that can be used with 'abx init'.
+    """
+    # Resolve prompts — allow reading from files
+    sys_prompt_path = Path(system_prompt)
+    if sys_prompt_path.exists() and sys_prompt_path.is_file():
+        system_prompt_text = sys_prompt_path.read_text().strip()
+    else:
+        system_prompt_text = system_prompt.strip()
+
+    user_prompt_path = Path(user_prompt)
+    if user_prompt_path.exists() and user_prompt_path.is_file():
+        user_prompt_text = user_prompt_path.read_text().strip()
+    else:
+        user_prompt_text = user_prompt.strip()
+
+    if not system_prompt_text and not user_prompt_text:
+        console.print("[red]✗ At least one of --system-prompt or --user-prompt must be non-empty[/]")
+        raise typer.Exit(code=1)
+
+    # Initialize LLM client
+    try:
+        llm = DeepSeekClient(model=model)
+    except ValueError as e:
+        console.print(f"[red]✗ {e}[/]")
+        console.print("  Set DEEPSEEK_API_KEY environment variable or ensure it's configured.")
+        raise typer.Exit(code=1)
+
+    console.print("[bold cyan]Generating test cases from prompts...[/]")
+    console.print(f"  Task: {task}")
+    console.print(f"  Test cases to generate: {count}")
+    console.print(f"  System prompt: {system_prompt_text[:60]}...")
+    console.print(f"  User prompt: {user_prompt_text[:60]}...")
+
+    try:
+        test_suite = generate_test_suite(
+            llm_client=llm,
+            task_description=task,
+            system_prompt=system_prompt_text,
+            user_prompt=user_prompt_text,
+            count=count,
+            model=model,
+        )
+    except ValueError as e:
+        console.print(f"[red]✗ Failed to generate test suite: {e}[/]")
+        raise typer.Exit(code=1)
+
+    # Write output
+    output_path = Path(output)
+    output_data = test_suite.model_dump(mode="json")
+    with open(output_path, "w") as f:
+        json.dump(output_data, f, indent=2)
+
+    console.print(f"[green]✓[/] Generated [bold]{len(test_suite.test_cases)}[/] test cases")
+    console.print(f"  Output: [bold]{output_path.resolve()}[/]")
+    console.print(f"\n  Use with: [bold]abx init --task \"{task}\" --tests {output}[/]")
 
 
 def main():
