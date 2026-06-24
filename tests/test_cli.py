@@ -95,6 +95,92 @@ def test_help():
     assert "list-experiments" in result.stdout
 
 
+def test_init_help_shows_system_prompt_option():
+    """Verify --system-prompt appears in init help."""
+    result = runner.invoke(app, ["init", "--help"])
+    assert result.exit_code == 0
+    assert "--system-prompt" in result.stdout
+    assert "-s" in result.stdout
+
+
+def test_init_with_system_prompt_inline():
+    """Inline system prompt should be stored in experiment config."""
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+    json.dump({
+        "task_description": "Translate text",
+        "test_cases": [
+            {"input": "Hello", "rubric": "Must translate to French"},
+        ],
+    }, tmp)
+    tmp.close()
+
+    db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    db.close()
+
+    result = runner.invoke(app, [
+        "init",
+        "--task", "Translate English to French",
+        "--tests", tmp.name,
+        "--output", db.name,
+        "--system-prompt", "You are a professional translator.",
+    ])
+    assert result.exit_code == 0
+    assert "System prompt" in result.stdout
+    assert "professional translator" in result.stdout
+
+    # Verify it was stored
+    from abx.storage import Storage
+    storage = Storage(db_path=db.name)
+    experiments = storage.list_experiments()
+    assert len(experiments) > 0
+    exp = storage.get_experiment(experiments[0]["id"])
+    assert exp is not None
+    assert exp.config.system_prompt == "You are a professional translator."
+
+    os.unlink(tmp.name)
+    os.unlink(db.name)
+
+
+def test_init_with_system_prompt_from_file():
+    """File path as system prompt should read file content."""
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+    json.dump({
+        "task_description": "Test",
+        "test_cases": [{"input": "Hi", "rubric": "Must reply"}],
+    }, tmp)
+    tmp.close()
+
+    prompt_file = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+    prompt_file.write("You are a test assistant.")
+    prompt_file.close()
+
+    db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    db.close()
+
+    result = runner.invoke(app, [
+        "init",
+        "--task", "Test task",
+        "--tests", tmp.name,
+        "--output", db.name,
+        "--system-prompt", prompt_file.name,
+    ])
+    assert result.exit_code == 0
+    assert "System prompt" in result.stdout
+    assert "test assistant" in result.stdout
+
+    # Verify stored as resolved text
+    from abx.storage import Storage
+    storage = Storage(db_path=db.name)
+    experiments = storage.list_experiments()
+    exp = storage.get_experiment(experiments[0]["id"])
+    assert exp is not None
+    assert exp.config.system_prompt == "You are a test assistant."
+
+    os.unlink(tmp.name)
+    os.unlink(prompt_file.name)
+    os.unlink(db.name)
+
+
 # --- report command stats tests ---
 
 def test_report_shows_stats():
@@ -138,6 +224,37 @@ def test_report_shows_stats():
     assert "Generations" in result.stdout
 
     os.unlink(db.name)
+
+
+def test_generate_tests_long_inline_prompt_no_oserror():
+    """Long inline system_prompt should NOT raise OSError in generate_tests."""
+    long_prompt = "Be helpful. " * 200  # ~3000 chars — exceeds NAME_MAX on most FS
+    result = runner.invoke(app, [
+        "generate-tests",
+        "--system-prompt", long_prompt,
+        "--user-prompt", "Summarize this text",
+        "--task", "Summarization",
+        "--output", "/tmp/test_long_prompt.json",
+        "--count", "1",
+    ])
+    # Should NOT crash with OSError; LLM client init may fail but that's ValueError
+    assert "OSError" not in result.stdout
+    assert result.exit_code != 0  # Will fail at LLM init, but not at resolution
+
+
+def test_generate_tests_long_user_prompt_no_oserror():
+    """Long inline user_prompt should NOT raise OSError in generate_tests."""
+    long_prompt = "Summarize. " * 200  # ~3000 chars
+    result = runner.invoke(app, [
+        "generate-tests",
+        "--system-prompt", "Be concise",
+        "--user-prompt", long_prompt,
+        "--task", "Summarization",
+        "--output", "/tmp/test_long_user.json",
+        "--count", "1",
+    ])
+    assert "OSError" not in result.stdout
+    assert result.exit_code != 0
 
 
 def test_report_winner_only_with_stats():

@@ -57,6 +57,7 @@ class Candidate(BaseModel):
 class ExperimentConfig(BaseModel):
     """Configuration for an optimization experiment."""
     model: str = "deepseek-v4-flash"
+    system_prompt: str = ""  # Optional system prompt template (file-path-aware)
     cycles: int = 20
     population_size: int = 5
     tournament_size: int = 3

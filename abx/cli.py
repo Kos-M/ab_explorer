@@ -17,6 +17,7 @@ from .llm import DeepSeekClient
 from .models import Experiment, ExperimentConfig, TestCase, TestSuite
 from .storage import Storage
 from .test_generator import generate_test_suite
+from .utils import resolve_system_prompt
 
 app = typer.Typer(
     name="abx",
@@ -41,6 +42,12 @@ def init(
     output: str = typer.Option(
         "ab_explorer.db", "--output", "-o", help="SQLite database path"
     ),
+    system_prompt: str = typer.Option(
+        "", "--system-prompt", "-s",
+        help="System prompt (inline text or path to a .txt file). "
+             "If the value is an existing file path, its content is read. "
+             "Otherwise the value is used directly as inline text.",
+    ),
 ):
     """Initialize a new experiment with a test suite."""
     # Load test suite
@@ -62,12 +69,19 @@ def init(
         console.print("[red]✗ Test suite must have at least one test case[/]")
         raise typer.Exit(code=1)
 
+    # Resolve system prompt: supports both file paths and inline text
+    resolved_system_prompt = resolve_system_prompt(system_prompt) if system_prompt else ""
+
     exp_name = name or f"Experiment: {task[:40]}"
     experiment = Experiment(
         name=exp_name,
         task_description=task,
         test_suite=test_suite,
     )
+
+    if resolved_system_prompt:
+        experiment.config.system_prompt = resolved_system_prompt
+        console.print(f"  System prompt: {resolved_system_prompt[:60]}...")
 
     storage = Storage(db_path=output)
     storage.save_experiment(experiment)
@@ -302,18 +316,10 @@ def generate_tests(
     Uses the LLM to analyze your existing prompts and generate diverse
     test cases (inputs + rubrics) that can be used with 'abx init'.
     """
-    # Resolve prompts — allow reading from files
-    sys_prompt_path = Path(system_prompt)
-    if sys_prompt_path.exists() and sys_prompt_path.is_file():
-        system_prompt_text = sys_prompt_path.read_text().strip()
-    else:
-        system_prompt_text = system_prompt.strip()
-
-    user_prompt_path = Path(user_prompt)
-    if user_prompt_path.exists() and user_prompt_path.is_file():
-        user_prompt_text = user_prompt_path.read_text().strip()
-    else:
-        user_prompt_text = user_prompt.strip()
+    # Resolve prompts — allow reading from files, fallback to inline text
+    # Uses resolve_system_prompt() which safely handles OSError from long paths
+    system_prompt_text = resolve_system_prompt(system_prompt)
+    user_prompt_text = resolve_system_prompt(user_prompt)
 
     if not system_prompt_text and not user_prompt_text:
         console.print("[red]✗ At least one of --system-prompt or --user-prompt must be non-empty[/]")
