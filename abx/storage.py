@@ -209,6 +209,47 @@ class Storage:
                 (experiment_id, candidate_id, rank, generation),
             )
 
+    def get_experiment_stats(self, experiment_id: str) -> dict:
+        """Get aggregate statistics for an experiment.
+
+        Returns a dict with:
+            total_cost (float): Sum of all candidate costs
+            total_tokens (int): Sum of all candidate token counts
+            total_candidates (int): Number of candidates evaluated
+            total_generations (int): Number of generations completed
+            avg_cost (float): Average cost per candidate
+            avg_latency (float): Average latency per candidate
+        """
+        with self._get_conn() as conn:
+            row = conn.execute(
+                """SELECT
+                       COALESCE(SUM(cost), 0.0) as total_cost,
+                       COALESCE(SUM(token_count), 0) as total_tokens,
+                       COUNT(*) as total_candidates,
+                       COALESCE(AVG(latency), 0.0) as avg_latency
+                   FROM candidates
+                   WHERE experiment_id = ?""",
+                (experiment_id,),
+            ).fetchone()
+
+            exp_row = conn.execute(
+                "SELECT current_generation FROM experiments WHERE id = ?",
+                (experiment_id,),
+            ).fetchone()
+            total_gens = exp_row["current_generation"] if exp_row else 0
+
+            total_cost = row["total_cost"]
+            total_candidates = row["total_candidates"]
+
+            return {
+                "total_cost": total_cost,
+                "total_tokens": row["total_tokens"],
+                "total_candidates": total_candidates,
+                "total_generations": total_gens,
+                "avg_cost": total_cost / total_candidates if total_candidates > 0 else 0.0,
+                "avg_latency": row["avg_latency"],
+            }
+
     def get_winners(self, experiment_id: str) -> list[Candidate]:
         """Get all winning candidates for an experiment."""
         with self._get_conn() as conn:

@@ -176,6 +176,29 @@ def report(
 
     winners = storage.get_winners(experiment_id)
     candidates = storage.get_candidates(experiment_id)
+    stats = storage.get_experiment_stats(experiment_id)
+
+    # Experiment-level stats table
+    duration = experiment.updated_at - experiment.created_at
+    duration_secs = duration.total_seconds()
+    if duration_secs >= 3600:
+        duration_str = f"{duration_secs / 3600:.1f}h"
+    elif duration_secs >= 60:
+        duration_str = f"{duration_secs / 60:.1f}m"
+    else:
+        duration_str = f"{duration_secs:.0f}s"
+
+    stats_table = Table(title="Experiment Stats")
+    stats_table.add_column("Metric", style="cyan")
+    stats_table.add_column("Value", style="green")
+    stats_table.add_row("Status", experiment.status.value)
+    stats_table.add_row("Generations", str(experiment.current_generation))
+    stats_table.add_row("Duration", duration_str)
+    stats_table.add_row("Total Cost", f"${stats['total_cost']:.6f}")
+    stats_table.add_row("Total Tokens", f"{stats['total_tokens']:,}")
+    stats_table.add_row("LLM Calls", str(stats["total_candidates"]))
+    stats_table.add_row("Avg Cost/Call", f"${stats['avg_cost']:.6f}")
+    console.print(stats_table)
 
     if winner_only and winners:
         best = find_best_candidate(winners)

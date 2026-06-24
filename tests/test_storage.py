@@ -119,6 +119,66 @@ class TestStorageWinners:
         assert len(winners) == 2
 
 
+class TestStorageStats:
+    def test_get_experiment_stats_empty(self, storage):
+        """Stats for an experiment with no candidates should return zeros."""
+        exp = Experiment(name="stats-empty", task_description="x")
+        storage.save_experiment(exp)
+        stats = storage.get_experiment_stats(exp.id)
+        assert stats["total_cost"] == 0.0
+        assert stats["total_tokens"] == 0
+        assert stats["total_candidates"] == 0
+        assert stats["total_generations"] == 0
+        assert stats["avg_cost"] == 0.0
+        assert stats["avg_latency"] == 0.0
+
+    def test_get_experiment_stats_with_candidates(self, storage):
+        """Stats should correctly aggregate candidate data."""
+        exp = Experiment(name="stats-test", task_description="x")
+        storage.save_experiment(exp)
+
+        c1 = Candidate(
+            prompts=PromptPair(system_prompt="A", user_prompt="B"),
+            generation=0,
+            scores=[8.0],
+            composite_score=8.0,
+            cost=0.005,
+            latency=150.0,
+            token_count=500,
+        )
+        c2 = Candidate(
+            prompts=PromptPair(system_prompt="C", user_prompt="D"),
+            generation=1,
+            scores=[9.0],
+            composite_score=9.0,
+            cost=0.003,
+            latency=100.0,
+            token_count=300,
+        )
+        storage.save_candidate(c1, exp.id)
+        storage.save_candidate(c2, exp.id)
+
+        stats = storage.get_experiment_stats(exp.id)
+        assert stats["total_cost"] == 0.008
+        assert stats["total_tokens"] == 800
+        assert stats["total_candidates"] == 2
+        assert stats["avg_cost"] == 0.004
+        assert stats["avg_latency"] == 125.0
+
+    def test_get_experiment_stats_generations(self, storage):
+        """Stats should reflect the experiment's current_generation."""
+        exp = Experiment(name="gen-stats", task_description="x")
+        exp.current_generation = 5
+        storage.save_experiment(exp)
+
+        c = Candidate(prompts=PromptPair(), generation=5, cost=0.001, latency=50.0, token_count=100)
+        storage.save_candidate(c, exp.id)
+
+        stats = storage.get_experiment_stats(exp.id)
+        assert stats["total_generations"] == 5
+        assert stats["total_candidates"] == 1
+
+
 class TestStorageTestResult:
     def test_save_result(self, storage):
         exp = Experiment(name="result-test", task_description="x")
