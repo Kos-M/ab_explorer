@@ -15,6 +15,7 @@ from .experiment import ExperimentRunner
 from .kpi import find_best_candidate
 from .llm import DeepSeekClient
 from .models import Experiment, ExperimentConfig, TestCase, TestSuite
+from .self_optimizer import SelfOptimizationRunner
 from .storage import Storage
 from .test_generator import generate_test_suite
 from .utils import resolve_system_prompt
@@ -361,6 +362,250 @@ def generate_tests(
     console.print(f"[green]✓[/] Generated [bold]{len(test_suite.test_cases)}[/] test cases")
     console.print(f"  Output: [bold]{output_path.resolve()}[/]")
     console.print(f"\n  Use with: [bold]abx init --task \"{task}\" --tests {output}[/]")
+
+
+@app.command()
+def self_optimize(
+    tests: str = typer.Option(
+        ..., "--tests", "-f", help="Path to test suite JSON file with expected_score fields"
+    ),
+    task: str = typer.Option(
+        "", "--task", "-t", help="Task description (overrides test suite value)"
+    ),
+    name: str = typer.Option(
+        "Experiment A: Optimize EVAL_SYSTEM_PROMPT via GA", "--name", "-n",
+        help="Experiment name",
+    ),
+    db: str = typer.Option(
+        "ab_explorer.db", "--db", "-d", help="SQLite database path"
+    ),
+    cycles: int = typer.Option(
+        5, "--cycles", "-c", help="Maximum optimization generations"
+    ),
+    population_size: int = typer.Option(
+        8, "--population", "-p", help="Population size per generation"
+    ),
+    model: str = typer.Option(
+        "deepseek-v4-flash", "--model", "-m", help="DeepSeek model name"
+    ),
+    accuracy_weight: float = typer.Option(
+        0.6, "--accuracy-weight", help="KPI accuracy weight (primary)"
+    ),
+    cost_weight: float = typer.Option(
+        0.2, "--cost-weight", help="KPI cost weight"
+    ),
+    latency_weight: float = typer.Option(
+        0.2, "--latency-weight", help="KPI latency weight"
+    ),
+    plateau_threshold: float = typer.Option(
+        0.02, "--plateau-threshold", help="Convergence threshold"
+    ),
+    plateau_rounds: int = typer.Option(
+        5, "--plateau-rounds", help="Rounds before convergence"
+    ),
+):
+    """Run GA self-optimization of EVAL_SYSTEM_PROMPT.
+
+    Uses a test suite with expected_score fields to optimize the
+    evaluator's system prompt for accuracy via genetic algorithm.
+    """
+    # Load test suite
+    tests_path = Path(tests)
+    if not tests_path.exists():
+        console.print(f"[red]✗ Test file not found: {tests}[/]")
+        raise typer.Exit(code=1)
+
+    with open(tests_path) as f:
+        data = json.load(f)
+
+    test_suite = TestSuite(
+        task_description=data.get("task_description", task or "Evaluate AI responses against rubrics"),
+        test_cases=[TestCase(**tc) for tc in data.get("test_cases", [])],
+        evaluation_model=data.get("evaluation_model", "deepseek-v4-flash"),
+    )
+
+    if not test_suite.test_cases:
+        console.print("[red]✗ Test suite must have at least one test case[/]")
+        raise typer.Exit(code=1)
+
+    # Verify test cases have expected_score
+    missing_scores = [tc for tc in test_suite.test_cases if tc.expected_score is None]
+    if missing_scores:
+        console.print(f"[yellow]⚠ {len(missing_scores)}/{len(test_suite.test_cases)} test cases missing expected_score[/]")
+        console.print("  These cases will use default score of 5.0.")
+
+    experiment = Experiment(
+        name=name,
+        task_description=test_suite.task_description,
+        test_suite=test_suite,
+    )
+
+    # Set config
+    experiment.config.cycles = cycles
+    experiment.config.population_size = population_size
+    experiment.config.model = model
+    experiment.config.plateau_threshold = plateau_threshold
+    experiment.config.plateau_rounds = plateau_rounds
+    experiment.config.kpi_weights = {
+        "accuracy": accuracy_weight,
+        "cost": cost_weight,
+        "latency": latency_weight,
+    }
+
+    # Initialize LLM client
+    try:
+        llm = DeepSeekClient(model=model)
+    except ValueError as e:
+        console.print(f"[red]✗ {e}[/]")
+        console.print("  Set DEEPSEEK_API_KEY environment variable or ensure it's configured.")
+        raise typer.Exit(code=1)
+
+    # Save experiment
+    storage = Storage(db_path=db)
+    storage.save_experiment(experiment)
+
+    console.print(f"[green]✓[/] Self-optimization experiment initialized: [bold]{experiment.id}[/]")
+    console.print(f"  Name: {experiment.name}")
+    console.print(f"  Generations: {cycles} | Population: {population_size}")
+    console.print(f"  Test cases: {len(test_suite.test_cases)}")
+    console.print(f"  Database: {db}")
+    console.print(f"\n  Running optimization...\n")
+
+    # Run self-optimization
+    runner = SelfOptimizationRunner(experiment, storage, llm)
+    result = runner.run()
+
+    # Save final state
+    storage.save_experiment(result)
+
+    console.print(f"\n[green]✓[/] Self-optimization complete!")
+    console.print(f"  ID: {result.id}")
+    console.print(f"  Status: {result.status.value}")
+    console.print(f"  Generations: {result.current_generation}")
+
+    # Offer baseline comparison
+    console.print(f"\n  Run comparison: [bold]abx self-eval-compare --experiment-id {result.id} --db {db}[/]")
+
+
+@app.command()
+def self_eval_compare(
+    experiment_id: str = typer.Option(
+        ..., "--experiment-id", "-e", help="Self-optimization experiment ID"
+    ),
+    db: str = typer.Option(
+        "ab_explorer.db", "--db", "-d", help="SQLite database path"
+    ),
+    model: str = typer.Option(
+        "deepseek-v4-flash", "--model", "-m", help="DeepSeek model name"
+    ),
+):
+    """Compare the winning EVAL_SYSTEM_PROMPT against the baseline."""
+    storage = Storage(db_path=db)
+    experiment = storage.get_experiment(experiment_id)
+
+    if not experiment:
+        console.print(f"[red]✗ Experiment not found: {experiment_id}[/]")
+        raise typer.Exit(code=1)
+
+    if not experiment.test_suite:
+        console.print("[red]✗ Experiment has no test suite[/]")
+        raise typer.Exit(code=1)
+
+    # Initialize LLM
+    try:
+        llm = DeepSeekClient(model=model)
+    except ValueError as e:
+        console.print(f"[red]✗ {e}[/]")
+        raise typer.Exit(code=1)
+
+    # Get winning candidate
+    winners = storage.get_winners(experiment_id)
+    if not winners:
+        console.print("[yellow]⚠ No winners found. Run self-optimize first.[/]")
+        return
+
+    best = max(winners, key=lambda c: c.composite_score)
+
+    from .self_optimizer import evaluate_eval_candidate, compute_selfopt_composite_score
+    from .evaluator import EVAL_SYSTEM_PROMPT as BASELINE_EVAL_PROMPT
+    from .models import Candidate, PromptPair
+
+    console.print("[bold cyan]=== Baseline EVAL_SYSTEM_PROMPT ===[/]")
+    console.print(BASELINE_EVAL_PROMPT)
+    console.print()
+
+    # Evaluate baseline
+    console.print("[bold]Evaluating baseline prompt...[/]")
+    baseline_candidate = Candidate(
+        prompts=PromptPair(system_prompt=BASELINE_EVAL_PROMPT, user_prompt=""),
+        generation=-1,
+        mutation_type="baseline",
+    )
+    baseline_candidate, baseline_accuracy = evaluate_eval_candidate(
+        llm, baseline_candidate, experiment.test_suite
+    )
+
+    console.print(f"  Baseline accuracy: {baseline_accuracy:.2%}")
+    console.print(f"  Baseline cost: ${baseline_candidate.cost:.6f}")
+
+    console.print("\n[bold cyan]=== Winning EVAL_SYSTEM_PROMPT ===[/]")
+    console.print(best.prompts.system_prompt)
+    console.print()
+
+    # Evaluate winning prompt
+    console.print("[bold]Evaluating winning prompt...[/]")
+    best_accuracy = best.avg_score() if best.scores else 0.0
+
+    console.print(f"  Winning accuracy: {best_accuracy:.2%}")
+    console.print(f"  Winning cost: ${best.cost:.6f}")
+
+    # Comparison table
+    comparison = Table(title="Comparison: Baseline vs Optimized EVAL_SYSTEM_PROMPT")
+    comparison.add_column("Metric", style="cyan")
+    comparison.add_column("Baseline", style="yellow")
+    comparison.add_column("Optimized", style="green")
+    comparison.add_column("Delta", style="blue")
+
+    acc_delta = best_accuracy - baseline_accuracy
+    cost_delta = best.cost - baseline_candidate.cost
+    lat_delta = best.latency - baseline_candidate.latency
+
+    comparison.add_row(
+        "Accuracy",
+        f"{baseline_accuracy:.2%}",
+        f"{best_accuracy:.2%}",
+        f"{acc_delta:+.2%}",
+    )
+    comparison.add_row(
+        "Cost",
+        f"${baseline_candidate.cost:.6f}",
+        f"${best.cost:.6f}",
+        f"${cost_delta:+.6f}",
+    )
+    comparison.add_row(
+        "Avg Latency",
+        f"{baseline_candidate.latency:.0f}ms",
+        f"{best.latency:.0f}ms",
+        f"{lat_delta:+.0f}ms",
+    )
+    comparison.add_row(
+        "Test Cases",
+        str(len(experiment.test_suite.test_cases)),
+        str(len(experiment.test_suite.test_cases)),
+        "—",
+    )
+
+    console.print(comparison)
+
+    # Improvement assessment
+    if acc_delta > 0.05:
+        console.print(f"\n[bold green]✓ Significant improvement: Accuracy +{acc_delta:.2%}[/]")
+    elif acc_delta > 0:
+        console.print(f"\n[green]✓ Marginal improvement: Accuracy +{acc_delta:.2%}[/]")
+    elif acc_delta == 0:
+        console.print(f"\n[yellow]— No change in accuracy[/]")
+    else:
+        console.print(f"\n[red]✗ Accuracy decreased by {abs(acc_delta):.2%}[/]")
 
 
 def main():
