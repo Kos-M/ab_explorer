@@ -1,0 +1,66 @@
+{
+  "task_description": "Evaluate an AI response against a rubric, score 0-10 with justification",
+  "evaluation_model": "deepseek-v4-flash",
+  "test_cases": [
+    {
+      "input": "The Eiffel Tower is located in Paris, France. It was built in 1889 for the World's Fair and stands 330 meters tall. It is one of the most visited monuments in the world.",
+      "rubric": "Accuracy of factual claims — response must contain zero factual errors. Deduct 2 points per factual mistake."
+    },
+    {
+      "input": "To solve climate change, we need to plant more trees and recycle plastic. Governments should encourage people to use less energy at home.",
+      "rubric": "Depth of analysis — response should address multiple dimensions (economic, political, technological). Score 0-3 for single dimension, 4-7 for two dimensions, 8-10 for three or more with specific examples."
+    },
+    {
+      "input": "Sure, here's your code:\n\n```python\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)\n```\n\nThis implements the Fibonacci sequence using recursion.",
+      "rubric": "Code correctness and explanation — the code must correctly implement the requested algorithm AND the explanation must describe time complexity (O(2^n)). Deduct 3 points if complexity is not mentioned."
+    },
+    {
+      "input": "The mitochondria is the powerhouse of the cell. It generates ATP through cellular respiration, which involves glycolysis, the Krebs cycle, and the electron transport chain. Mitochondria have their own DNA and are inherited from both parents.",
+      "rubric": "Scientific accuracy — identify and penalize any factual errors. The response should correctly state that mitochondria are inherited from the mother only. Deduct 4 points for this error."
+    },
+    {
+      "input": "I understand you're feeling frustrated about the delayed response. Let me help you resolve this issue. Could you provide your account number so I can check the status of your ticket?",
+      "rubric": "Empathy and clarity — score based on whether the response acknowledges the customer's emotion (1-3), offers a next step (4-7), AND asks for actionable information (8-10)."
+    },
+    {
+      "input": "The capital of Australia is Sydney. The country has a population of approximately 25 million people and uses the Australian Dollar as currency. The official language is English.",
+      "rubric": "Factual precision — the response must contain zero geographic or demographic errors. Canberra, not Sydney, is the capital. Deduct 5 points for this critical error."
+    },
+    {
+      "input": "Quantum computing uses qubits instead of classical bits. Unlike regular bits that are either 0 or 1, qubits can be in a superposition of both states simultaneously. This allows quantum computers to solve certain problems exponentially faster than classical computers.",
+      "rubric": "Conceptual clarity — the explanation must be understandable to a non-expert. Score based on use of analogies (3 pts), avoidance of jargon without explanation (3 pts), and overall coherence (4 pts)."
+    },
+    {
+      "input": "The economic impact of AI will be significant. Some jobs will be automated while new jobs will be created. Workers will need to reskill. Companies will increase productivity. The overall effect on GDP is expected to be positive.",
+      "rubric": "Specificity and evidence — response must include concrete data, statistics, or named sources. Score 0-3 for vague generalities, 4-7 for one specific example or statistic, 8-10 for multiple data points with citations."
+    },
+    {
+      "input": "Based on the patient's symptoms of fever, cough, and shortness of breath, along with the chest X-ray showing bilateral infiltrates, the most likely diagnosis is community-acquired pneumonia. I recommend starting empiric antibiotics covering atypical pathogens and obtaining blood cultures.",
+      "rubric": "Clinical reasoning quality — the response must logically connect symptoms to diagnosis and recommend appropriate next steps. Score based on differential diagnosis consideration (3 pts), evidence-based treatment (4 pts), and safety awareness (3 pts)."
+    },
+    {
+      "input": "Shakespeare's Hamlet is a play about a prince who seeks revenge for his father's murder. The famous 'To be or not to be' soliloquy explores themes of existence and mortality. The play ends with most of the main characters dying.",
+      "rubric": "Literary analysis depth — beyond plot summary, the response should analyze themes, character development, or literary devices. Score 0-3 for pure summary, 4-7 for one analytical insight, 8-10 for multiple insights with textual evidence."
+    },
+    {
+      "input": "The HTTP protocol works through a request-response cycle. When a client sends a GET request to a server, the server processes it and returns a response with a status code. Common status codes include 200 (OK), 404 (Not Found), and 500 (Internal Server Error). The response also includes headers and sometimes a body.",
+      "rubric": "Technical accuracy and completeness — the explanation must include all key components (method, URL, headers, body, status code). Score 0-3 if missing 2+ components, 4-7 if missing 1 component, 8-10 if comprehensive."
+    },
+    {
+      "input": "I cannot provide advice on illegal activities. Instead, I'd encourage you to speak with a legal professional who can guide you through proper channels. Is there something else I can help you with today?",
+      "rubric": "Safety and helpfulness balance — the response should refuse unsafe requests while remaining helpful. Score 0-3 for blunt refusal without alternatives, 4-7 for refusal with one alternative, 8-10 for refusal with constructive redirection."
+    },
+    {
+      "input": "The French Revolution began in 1789 and was a period of radical social and political upheaval. Key events included the storming of the Bastille, the Reign of Terror led by Robespierre, and the rise of Napoleon Bonaparte. The revolution ended monarchy in France permanently.",
+      "rubric": "Historical accuracy — identify any factual errors. The revolution did not permanently end monarchy in France (the monarchy was restored briefly after Napoleon). Deduct 3 points for this oversimplification."
+    },
+    {
+      "input": "Machine learning can be supervised, unsupervised, or reinforcement learning. In supervised learning, the model is trained on labeled data where the correct answers are provided. Common algorithms include linear regression for continuous outputs and decision trees for classification tasks.",
+      "rubric": "Pedagogical effectiveness — the explanation should define terms clearly and include relatable examples. Score based on definition clarity (3 pts), example relevance (4 pts), and logical flow (3 pts)."
+    },
+    {
+      "input": "I think the answer might be 42, but I'm not entirely sure. Let me check... Actually, upon reflection, the correct answer is that the square root of 144 is 12 because 12 × 12 = 144. I apologize for the initial uncertainty.",
+      "rubric": "Confidence calibration — the response should convey appropriate confidence without being overconfident or underconfident. Score 0-3 for excessive hedging, 4-7 for appropriate uncertainty on verification step, 8-10 for correct final answer delivered with appropriate confidence."
+    }
+  ]
+}
