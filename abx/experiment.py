@@ -154,11 +154,36 @@ class ExperimentRunner:
     def _print_final_summary(self) -> None:
         """Print the final experiment summary."""
         best = find_best_candidate(self.experiment.winners)
+        stats = self.storage.get_experiment_stats(self.experiment.id)
+
+        # Compute duration
+        duration = self.experiment.updated_at - self.experiment.created_at
+        duration_secs = duration.total_seconds()
+        if duration_secs >= 3600:
+            duration_str = f"{duration_secs / 3600:.1f}h"
+        elif duration_secs >= 60:
+            duration_str = f"{duration_secs / 60:.1f}m"
+        else:
+            duration_str = f"{duration_secs:.0f}s"
+
         table = Table(title="Experiment Complete")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green")
         table.add_row("Status", self.experiment.status.value)
         table.add_row("Generations", str(self.experiment.current_generation))
+        table.add_row("Duration", duration_str)
+        table.add_row(
+            "Total Cost",
+            f"${stats['total_cost']:.6f}"
+        )
+        table.add_row(
+            "Total Tokens",
+            f"{stats['total_tokens']:,}"
+        )
+        table.add_row(
+            "LLM Calls",
+            str(stats["total_candidates"])
+        )
         if best:
             table.add_row("Best Score", f"{best.composite_score:.4f}")
             table.add_row("Best System Prompt", best.prompts.system_prompt[:80] + "...")
