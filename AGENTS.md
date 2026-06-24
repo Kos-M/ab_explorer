@@ -12,7 +12,9 @@ ab_explorer/
 │   ├── llm.py            # DeepSeek Flash adapter
 │   ├── models.py         # Pydantic data models
 │   ├── population.py     # Population generation + GA mutation
-│   └── storage.py        # SQLite persistence
+│   ├── storage.py        # SQLite persistence
+│   ├── test_generator.py # Test case generation from prompts
+│   └── utils.py          # Utility functions
 ├── tests/                # Test suite
 │   ├── __init__.py
 │   ├── test_cli.py       # CLI tests (report stats tests)
@@ -22,7 +24,9 @@ ab_explorer/
 │   ├── test_llm.py
 │   ├── test_models.py
 │   ├── test_population.py
-│   └── test_storage.py   # Storage tests (includes stats aggregation)
+│   ├── test_storage.py   # Storage tests (includes stats aggregation)
+│   ├── test_test_generator.py
+│   └── test_utils.py
 ├── AGENTS.md             # This file
 ├── pyproject.toml        # Project config + dependencies
 └── .gitignore
