@@ -24,7 +24,7 @@ def test_init_with_valid_file():
     tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
     json.dump({
         "task_description": "Extract dates",
-        "evaluation_model": "deepseek-chat",
+        "evaluation_model": "deepseek-v4-flash",
         "test_cases": [
             {"input": "March 5, 2024", "rubric": "Must extract date"},
         ],
@@ -51,7 +51,7 @@ def test_init_empty_test_cases():
     tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
     json.dump({
         "task_description": "Test",
-        "evaluation_model": "deepseek-chat",
+        "evaluation_model": "deepseek-v4-flash",
         "test_cases": [],
     }, tmp)
     tmp.close()

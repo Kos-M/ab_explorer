@@ -38,7 +38,7 @@ class TestTestSuite:
 
     def test_default_model(self):
         suite = TestSuite(task_description="x", test_cases=[])
-        assert suite.evaluation_model == "deepseek-chat"
+        assert suite.evaluation_model == "deepseek-v4-flash"
 
 
 class TestPromptPair:

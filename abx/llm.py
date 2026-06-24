@@ -11,7 +11,7 @@ import httpx
 
 
 DEFAULT_BASE_URL = "https://api.deepseek.com"
-DEFAULT_MODEL = "deepseek-chat"
+DEFAULT_MODEL = "deepseek-v4-flash"
 DEFAULT_TIMEOUT = 60.0
 
 
@@ -27,10 +27,10 @@ class LLMResponse:
     cost: float
 
 
-# Cost per 1M tokens (DeepSeek Flash pricing)
-# Input: $0.27/1M, Output: $1.10/1M (as of 2024)
-INPUT_COST_PER_M = 0.27
-OUTPUT_COST_PER_M = 1.10
+# Cost per 1M tokens (DeepSeek V4 Flash pricing)
+# Input (cache miss): $0.14/1M, Output: $0.28/1M (as of 2026)
+INPUT_COST_PER_M = 0.14
+OUTPUT_COST_PER_M = 0.28
 
 
 def _calculate_cost(prompt_tokens: int, completion_tokens: int) -> float:
