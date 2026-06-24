@@ -17,6 +17,7 @@ abx report --experiment-id <id> --winner-only
 
 - **🧬 Genetic Algorithm Optimization** — Evolves prompt populations through tournament selection, LLM-powered crossover, and mutation
 - **📊 Composite KPI Scoring** — Multi-factor scoring balancing accuracy, cost, and latency with configurable weights
+- **🎯 Test Case Generation** — Automatically generate test suites from existing prompts using LLM, with `abx generate-tests`
 - **🎯 Rubric-Based Evaluation** — Each test case includes a scoring rubric; the LLM evaluates outputs against it on a 0–10 scale
 - **⏱️ Plateau Detection** — Automatically converges when top scores stagnate (configurable threshold and patience)
 - **💾 SQLite Persistence** — Full experiment state, candidates, test results, and winners stored in a portable database
@@ -148,6 +149,28 @@ Generation Winners
 └────────────┴─────────┴─────────────┴──────────┘
 ```
 
+### 5. Generate test cases from existing prompts
+
+If you already have prompts and want to generate a test suite automatically:
+
+```bash
+abx generate-tests \
+  --task "Extract calendar dates from text" \
+  --system-prompt "You are a date extraction specialist." \
+  --user-prompt "Extract all dates from: {input}" \
+  --count 5 \
+  --output tests.json
+```
+
+```
+✓ Generated 5 test cases
+  Output: /path/to/tests.json
+
+  Use with: abx init --task "Extract calendar dates from text" --tests tests.json
+```
+
+The LLM analyzes your prompts and generates diverse test cases covering easy, medium, and hard scenarios. The output tests.json can be fed directly into `abx init`.
+
 Or with `--winner-only`:
 
 ```bash
@@ -225,6 +248,19 @@ List all experiments in the database.
 |--------|-------|------|---------|-------------|
 | `--db` | `-d` | string | `ab_explorer.db` | SQLite database path |
 
+### `abx generate-tests`
+
+Generate a test suite JSON file from existing prompts using LLM.
+
+| Option | Short | Type | Default | Description |
+|--------|-------|------|---------|-------------|
+| `--task` | `-t` | string | *required* | Task description for the experiment |
+| `--system-prompt` | `-s` | string | *required* | System prompt (inline text or path to a `.txt` file) |
+| `--user-prompt` | `-u` | string | *required* | User prompt (inline text or path to a `.txt` file) |
+| `--output` | `-o` | string | `tests.json` | Output path for the generated test suite |
+| `--count` | `-c` | int | `5` | Number of test cases to generate (1–20) |
+| `--model` | `-m` | string | `deepseek-v4-flash` | DeepSeek model for test generation |
+
 ---
 
 ## Test Suite JSON Format
@@ -251,7 +287,7 @@ Each test case:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         CLI (Typer)                             │
-│                    abx init / run / report                      │
+│            abx init / run / report / generate-tests             │
 └──────┬──────────────────────────┬───────────────────────────────┘
        │                          │
        ▼                          ▼
@@ -289,7 +325,7 @@ Each test case:
 
 | Module | File | Role |
 |--------|------|------|
-| `cli.py` | CLI entry point | Typer commands: `init`, `run`, `report`, `list-experiments` |
+| `cli.py` | CLI entry point | Typer commands: `init`, `run`, `report`, `list-experiments`, `generate-tests` |
 | `models.py` | Data models | Pydantic v2 schemas: `Experiment`, `Candidate`, `TestSuite`, `PromptPair`, `ExperimentConfig` |
 | `experiment.py` | GA loop | `ExperimentRunner` — orchestrates the optimization lifecycle |
 | `population.py` | GA operations | Initial generation, tournament selection, crossover, mutation, evolution |
@@ -297,6 +333,8 @@ Each test case:
 | `kpi.py` | Composite scoring | Computes weighted KPI: accuracy * cost * latency |
 | `llm.py` | LLM adapter | DeepSeek Flash client with `httpx`, token tracking, and cost calculation |
 | `storage.py` | Persistence | SQLite CRUD for experiments, candidates, test results, and winners |
+| `test_generator.py` | Test generation | Generates `TestSuite` from existing prompts using LLM via `generate_test_suite()` |
+| `utils.py` | Utilities | Helper functions including `resolve_system_prompt()` for file-or-inline prompt resolution |
 
 ### Genetic Algorithm Flow
 
@@ -420,7 +458,9 @@ ab_explorer/
 │   ├── llm.py            # DeepSeek Flash adapter
 │   ├── models.py         # Pydantic data models
 │   ├── population.py     # Population generation + GA mutation
-│   └── storage.py        # SQLite persistence
+│   ├── storage.py        # SQLite persistence
+│   ├── test_generator.py # Test case generation from prompts
+│   └── utils.py          # Utility functions
 ├── tests/                # Test suite
 │   ├── test_cli.py
 │   ├── test_evaluator.py
@@ -429,7 +469,9 @@ ab_explorer/
 │   ├── test_llm.py
 │   ├── test_models.py
 │   ├── test_population.py
-│   └── test_storage.py
+│   ├── test_storage.py
+│   ├── test_test_generator.py
+│   └── test_utils.py
 ├── AGENTS.md             # Agent context metadata
 ├── README.md             # This file
 ├── pyproject.toml        # Project config + dependencies
