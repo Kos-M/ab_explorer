@@ -316,18 +316,10 @@ def generate_tests(
     Uses the LLM to analyze your existing prompts and generate diverse
     test cases (inputs + rubrics) that can be used with 'abx init'.
     """
-    # Resolve prompts — allow reading from files
-    sys_prompt_path = Path(system_prompt)
-    if sys_prompt_path.exists() and sys_prompt_path.is_file():
-        system_prompt_text = sys_prompt_path.read_text().strip()
-    else:
-        system_prompt_text = system_prompt.strip()
-
-    user_prompt_path = Path(user_prompt)
-    if user_prompt_path.exists() and user_prompt_path.is_file():
-        user_prompt_text = user_prompt_path.read_text().strip()
-    else:
-        user_prompt_text = user_prompt.strip()
+    # Resolve prompts — allow reading from files, fallback to inline text
+    # Uses resolve_system_prompt() which safely handles OSError from long paths
+    system_prompt_text = resolve_system_prompt(system_prompt)
+    user_prompt_text = resolve_system_prompt(user_prompt)
 
     if not system_prompt_text and not user_prompt_text:
         console.print("[red]✗ At least one of --system-prompt or --user-prompt must be non-empty[/]")

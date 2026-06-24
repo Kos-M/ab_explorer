@@ -226,6 +226,37 @@ def test_report_shows_stats():
     os.unlink(db.name)
 
 
+def test_generate_tests_long_inline_prompt_no_oserror():
+    """Long inline system_prompt should NOT raise OSError in generate_tests."""
+    long_prompt = "Be helpful. " * 200  # ~3000 chars — exceeds NAME_MAX on most FS
+    result = runner.invoke(app, [
+        "generate-tests",
+        "--system-prompt", long_prompt,
+        "--user-prompt", "Summarize this text",
+        "--task", "Summarization",
+        "--output", "/tmp/test_long_prompt.json",
+        "--count", "1",
+    ])
+    # Should NOT crash with OSError; LLM client init may fail but that's ValueError
+    assert "OSError" not in result.stdout
+    assert result.exit_code != 0  # Will fail at LLM init, but not at resolution
+
+
+def test_generate_tests_long_user_prompt_no_oserror():
+    """Long inline user_prompt should NOT raise OSError in generate_tests."""
+    long_prompt = "Summarize. " * 200  # ~3000 chars
+    result = runner.invoke(app, [
+        "generate-tests",
+        "--system-prompt", "Be concise",
+        "--user-prompt", long_prompt,
+        "--task", "Summarization",
+        "--output", "/tmp/test_long_user.json",
+        "--count", "1",
+    ])
+    assert "OSError" not in result.stdout
+    assert result.exit_code != 0
+
+
 def test_report_winner_only_with_stats():
     """Verify winner-only mode still shows stats before winner info."""
     db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
