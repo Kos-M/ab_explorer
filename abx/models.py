@@ -26,6 +26,7 @@ class TestCase(BaseModel):
     """A single test case with input and rubric for evaluation."""
     input: str
     rubric: str
+    expected_score: Optional[float] = None  # Ground truth score (0-10) for self-optimization experiments
 
 
 class TestSuite(BaseModel):
