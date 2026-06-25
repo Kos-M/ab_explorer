@@ -20,22 +20,12 @@ Task: {task_description}
 
 Return your response as a JSON array of objects, each with "system_prompt" and "user_prompt" keys. No markdown, no code blocks — just raw JSON."""
 
-MUTATION_PROMPT = """You are a prompt engineer improving an existing prompt. Given the task description and current prompts, generate an improved version.
+MUTATION_PROMPT = """You are a prompt engineer tasked with improving an existing prompt pair through a structured, analytical approach. Given the task description and current prompts, generate an improved version by systematically evaluating each component. Use the following breakdown: (1) Identify the core goal of {task_description} and assess if {system_prompt} and {user_prompt} align with it. (2) Analyze clarity and specificity: make instructions more precise or add step-by-step logic if needed, but avoid overcomplication. (3) Critically examine the placement and utility of any examples: add if missing for clarity, remove if confusing. (4) Adjust tone to be neutral, instructive, and professional. (5) Add explicit constraints (e.g., output format, length, style rules) only if they serve the task. (6) Restructure for logical flow: introduce a reasoning chain if the task benefits from multi-step thinking. Return your response as a JSON object with 'system_prompt' and 'user_prompt' keys. No markdown, no code blocks — just raw JSON.
 
 Task: {task_description}
 
 Current system prompt: {system_prompt}
-Current user prompt: {user_prompt}
-
-Improve these prompts. You can:
-- Make instructions more specific or more general
-- Add examples or remove them
-- Change the tone (authoritative, friendly, concise)
-- Add constraints or remove them
-- Restructure for clarity
-- Add chain-of-thought guidance
-
-Return your response as a JSON object with "system_prompt" and "user_prompt" keys. No markdown, no code blocks — just raw JSON."""
+Current user prompt: {user_prompt}"""
 
 CROSSOVER_PROMPT = """You are a prompt engineer combining the best parts of two parent prompts into a new child prompt.
 
