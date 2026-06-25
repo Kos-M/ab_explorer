@@ -19,15 +19,19 @@ Provide a brief analysis (2-3 sentences) without mandatory chain-of-thought.
 Be lenient on minor inaccuracies if the response is otherwise complete.
 Emphasize coverage of key topics over perfect wording."""
 
-EVAL_USER_PROMPT = """Task: {task_description}
+EVAL_USER_PROMPT = """Evaluate the response using a three-step process:
 
-AI Response: {response}
+Step 1 - Identify which rubric criteria are met, partially met, or not met.
+Step 2 - Assign an integer score 0-10 (0=none met, 10=all perfectly met). Write the score before reasoning.
+Step 3 - Provide a brief reasoning that cites specific elements from the response and rubric.
 
+Step 4 (self-consistency): Ensure the reasoning supports the score. If there is a mismatch, revise either the score or reasoning until consistent.
+
+Task: {task_description}
+Response: {response}
 Rubric: {rubric}
 
-Score this response 0-10 based on how well it meets the rubric.
-
-Return ONLY a JSON object with "score" (integer 0-10) and "reasoning" (brief justification)."""
+Output a JSON object with keys: "score", "reasoning", "consistent". Do not include any extra text."""
 
 
 @dataclass
