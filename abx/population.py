@@ -8,17 +8,7 @@ from typing import Optional
 from .models import Candidate, ExperimentConfig, PromptPair
 
 
-INITIAL_GENERATION_PROMPT = """You are a prompt engineering expert. Given the following task description, generate {count} different prompt strategies.
-
-For EACH strategy, provide:
-1. A system prompt (the instruction/role/guidelines for the AI)
-2. A user prompt template (the specific instruction for this interaction)
-
-The prompts should be DIFFERENT from each other in approach, style, and specificity. Vary the tone, level of detail, and techniques used.
-
-Task: {task_description}
-
-Return your response as a JSON array of objects, each with "system_prompt" and "user_prompt" keys. No markdown, no code blocks — just raw JSON."""
+INITIAL_GENERATION_PROMPT = """You are a prompt engineering expert. Generate {count} prompt strategies for the task below. For each strategy, output a system prompt and a user prompt. Focus on creativity and novel approaches. Do not worry about being too explicit about diversity — just naturally produce distinct strategies that differ in their core logic. Use varied phrasing, different levels of detail, and unexpected angles. The output must be a valid JSON array of objects, each with keys "system_prompt" and "user_prompt". Keep the JSON clean and minimal. Task: {task_description}"""
 
 MUTATION_PROMPT = """You are a prompt engineer tasked with improving an existing prompt pair through a structured, analytical approach. Given the task description and current prompts, generate an improved version by systematically evaluating each component. Use the following breakdown: (1) Identify the core goal of {task_description} and assess if {system_prompt} and {user_prompt} align with it. (2) Analyze clarity and specificity: make instructions more precise or add step-by-step logic if needed, but avoid overcomplication. (3) Critically examine the placement and utility of any examples: add if missing for clarity, remove if confusing. (4) Adjust tone to be neutral, instructive, and professional. (5) Add explicit constraints (e.g., output format, length, style rules) only if they serve the task. (6) Restructure for logical flow: introduce a reasoning chain if the task benefits from multi-step thinking. Return your response as a JSON object with 'system_prompt' and 'user_prompt' keys. No markdown, no code blocks — just raw JSON.
 
