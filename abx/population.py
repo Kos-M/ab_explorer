@@ -77,15 +77,38 @@ def generate_initial_population(
     task_description: str,
     population_size: int = 5,
     temperature: float = 0.8,
+    seed_system_prompt: str = "",
+    seed_user_prompt: str = "",
 ) -> list[Candidate]:
     """Generate initial population of prompt candidates using the LLM.
 
-    The LLM generates N prompt strategies, each with system+user prompts.
+    If seed_system_prompt is provided, it becomes the first candidate (baseline),
+    and the LLM generates the remaining N-1 candidates as mutations from it.
+    Otherwise, the LLM generates N prompt strategies from scratch.
     """
+    candidates = []
+
+    # Seed with existing prompt if provided (this is the baseline)
+    if seed_system_prompt:
+        candidates.append(Candidate(
+            prompts=PromptPair(
+                system_prompt=seed_system_prompt,
+                user_prompt=seed_user_prompt,
+            ),
+            generation=0,
+            mutation_type="seed",
+        ))
+
+    remaining = population_size - len(candidates)
+    if remaining <= 0:
+        return candidates[:population_size]
+
     prompt = INITIAL_GENERATION_PROMPT.format(
-        count=population_size,
+        count=remaining,
         task_description=task_description,
     )
+    if seed_system_prompt:
+        prompt += f"\n\nThe current baseline system prompt is:\n{seed_system_prompt[:200]}...\nGenerate variants that preserve the same structure and intent but improve clarity, specificity, and compliance enforcement."
 
     response = llm_client.chat(
         system_prompt="You are a JSON-generating prompt engineering expert. Always return valid JSON.",
@@ -96,22 +119,23 @@ def generate_initial_population(
 
     parsed = _parse_json_response(response.content)
     if not parsed:
-        # Fallback: return a single basic candidate
-        return [Candidate(prompts=PromptPair(
-            system_prompt="You are a helpful assistant.",
-            user_prompt=task_description,
-        ))]
+        # Fallback: fill remaining with basic candidates
+        for i in range(remaining):
+            candidates.append(Candidate(prompts=PromptPair(
+                system_prompt=seed_system_prompt or "You are a helpful assistant.",
+                user_prompt=seed_user_prompt or task_description,
+            )))
+        return candidates
 
-    candidates = []
     if isinstance(parsed, dict):
         parsed = [parsed]
 
-    for item in parsed[:population_size]:
+    for item in parsed[:remaining]:
         if isinstance(item, dict):
             candidates.append(Candidate(
                 prompts=PromptPair(
-                    system_prompt=item.get("system_prompt", ""),
-                    user_prompt=item.get("user_prompt", ""),
+                    system_prompt=item.get("system_prompt", seed_system_prompt or ""),
+                    user_prompt=item.get("user_prompt", seed_user_prompt or ""),
                 ),
                 generation=0,
             ))
@@ -120,10 +144,11 @@ def generate_initial_population(
     while len(candidates) < population_size:
         candidates.append(Candidate(
             prompts=PromptPair(
-                system_prompt="You are a helpful AI assistant.",
-                user_prompt=f"Please complete the following task: {task_description}",
+                system_prompt=seed_system_prompt or "You are a helpful AI assistant.",
+                user_prompt=seed_user_prompt or f"Please complete the following task: {task_description}",
             ),
             generation=0,
+            mutation_type="fallback",
         ))
 
     return candidates
