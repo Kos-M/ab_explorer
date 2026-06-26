@@ -62,6 +62,7 @@ class ExperimentRunner:
             self.llm,
             self.experiment.task_description,
             config.population_size,
+            seed_system_prompt=config.system_prompt,
         )
         self._evaluate_and_score(population, test_suite, config)
         self._save_generation(population, 0)
