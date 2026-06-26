@@ -36,8 +36,13 @@ abx report --experiment-id <id> --winner-only
 ### Install
 
 ```bash
-git clone <repo-url>
+# Clone the repository
+git clone https://github.com/Kos-M/ab_explorer
 cd ab_explorer
+
+# Create and activate a virtual environment (recommended)
+python3 -m venv venv
+source venv/bin/activate
 
 # Install with dev dependencies
 pip install -e ".[dev]"
