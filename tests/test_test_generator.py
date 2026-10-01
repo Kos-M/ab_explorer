@@ -72,7 +72,7 @@ class TestGenerateTestSuite:
                     {"input": "Explain gravity", "rubric": "Must be scientifically accurate"},
                 ]
             }),
-            model="deepseek-v4-flash",
+            model="haiku",
             prompt_tokens=100,
             completion_tokens=50,
             total_tokens=150,
@@ -93,7 +93,7 @@ class TestGenerateTestSuite:
         assert suite.test_cases[0].input == "What is 2+2?"
         assert suite.test_cases[0].rubric == "Must answer correctly"
         assert suite.test_cases[1].input == "Explain gravity"
-        assert suite.evaluation_model == "deepseek-v4-flash"
+        assert suite.evaluation_model == "haiku"
 
     def test_generation_with_count_limit(self):
         """Test that count parameter limits test cases."""
@@ -105,7 +105,7 @@ class TestGenerateTestSuite:
                     for i in range(10)
                 ]
             }),
-            model="deepseek-v4-flash",
+            model="haiku",
             prompt_tokens=100,
             completion_tokens=50,
             total_tokens=150,
@@ -128,7 +128,7 @@ class TestGenerateTestSuite:
         mock_llm = MagicMock()
         mock_llm.chat.return_value = LLMResponse(
             content="I cannot generate test cases right now.",
-            model="deepseek-v4-flash",
+            model="haiku",
             prompt_tokens=50,
             completion_tokens=20,
             total_tokens=70,
@@ -149,7 +149,7 @@ class TestGenerateTestSuite:
         mock_llm = MagicMock()
         mock_llm.chat.return_value = LLMResponse(
             content=json.dumps({"test_cases": []}),
-            model="deepseek-v4-flash",
+            model="haiku",
             prompt_tokens=50,
             completion_tokens=20,
             total_tokens=70,
@@ -170,7 +170,7 @@ class TestGenerateTestSuite:
         mock_llm = MagicMock()
         mock_llm.chat.return_value = LLMResponse(
             content=json.dumps({"something_else": []}),
-            model="deepseek-v4-flash",
+            model="haiku",
             prompt_tokens=50,
             completion_tokens=20,
             total_tokens=70,
@@ -191,7 +191,7 @@ class TestGenerateTestSuite:
         mock_llm = MagicMock()
         mock_llm.chat.return_value = LLMResponse(
             content=json.dumps({"test_cases": [{"input": "a", "rubric": "b"}]}),
-            model="deepseek-v4-flash",
+            model="haiku",
             prompt_tokens=50,
             completion_tokens=20,
             total_tokens=70,
@@ -220,7 +220,7 @@ class TestGenerateTestSuite:
         mock_llm = MagicMock()
         mock_llm.chat.return_value = LLMResponse(
             content=json.dumps({"test_cases": [{"input": "a", "rubric": "b"}]}),
-            model="deepseek-v4-flash",
+            model="haiku",
             prompt_tokens=50,
             completion_tokens=20,
             total_tokens=70,
@@ -236,4 +236,4 @@ class TestGenerateTestSuite:
             count=1,
         )
 
-        assert suite.evaluation_model == "deepseek-v4-flash"
+        assert suite.evaluation_model == "haiku"

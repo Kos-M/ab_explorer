@@ -82,17 +82,17 @@ def generate_test_suite(
     system_prompt: str,
     user_prompt: str,
     count: int = 5,
-    model: str = "deepseek-v4-flash",
+    model: str = "haiku",
 ) -> TestSuite:
     """Generate a TestSuite from existing prompts using LLM.
 
     Args:
-        llm_client: DeepSeekClient instance.
+        llm_client: LLMClient instance.
         task_description: Description of what the prompt is for.
         system_prompt: The system prompt to generate test cases from.
         user_prompt: The user prompt template.
         count: Number of test cases to generate (default: 5).
-        model: Evaluation model name (default: deepseek-v4-flash).
+        model: Evaluation model name (default: haiku).
 
     Returns:
         A TestSuite with generated test cases.

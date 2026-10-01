@@ -1,6 +1,6 @@
 {
   "task_description": "Evaluate an AI response against a rubric, score 0-10 with justification",
-  "evaluation_model": "deepseek-v4-flash",
+  "evaluation_model": "haiku",
   "test_cases": [
     {
       "input": "The Eiffel Tower is located in Paris, France. It was built in 1889 for the World's Fair and stands 330 meters tall. It is one of the most visited monuments in the world.",

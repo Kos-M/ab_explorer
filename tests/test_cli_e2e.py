@@ -15,9 +15,10 @@ from abx.cli import app
 runner = CliRunner()
 
 
-def make_fake_deepseek():
-    """Fake DeepSeekClient: init population JSON, then fixed eval scores."""
+def make_fake_claude():
+    """Fake LLM client: init population JSON, then fixed eval scores."""
     fake = MagicMock()
+    fake.model = "haiku"
     call_count = [0]
     init_resp = json.dumps([
         {"system_prompt": "S1", "user_prompt": "U1"},
@@ -44,7 +45,7 @@ def test_cli_full_lifecycle(tmp_path):
     tests = tmp_path / "tests.json"
     tests.write_text(json.dumps({
         "task_description": "Extract dates from text",
-        "evaluation_model": "deepseek-v4-flash",
+        "evaluation_model": "haiku",
         "test_cases": [
             {"input": "Event on March 5, 2024", "rubric": "Must extract exact date"},
             {"input": "Deadline 2024-12-31", "rubric": "Must extract ISO date"},
@@ -68,7 +69,7 @@ def test_cli_full_lifecycle(tmp_path):
     exp_id = match.group(1)
 
     # 2. run with mocked LLM
-    with patch("abx.cli.DeepSeekClient", return_value=make_fake_deepseek()):
+    with patch("abx.cli.make_client", return_value=make_fake_claude()):
         r = runner.invoke(app, [
             "run",
             "--experiment-id", exp_id,
@@ -136,7 +137,7 @@ def _write_selfopt_tests(tmp_path):
     tests = tmp_path / "selfopt_tests.json"
     tests.write_text(json.dumps({
         "task_description": "Score AI responses against a rubric 0-10",
-        "evaluation_model": "deepseek-v4-flash",
+        "evaluation_model": "haiku",
         "test_cases": [
             {"input": "The Eiffel Tower is in Paris.", "rubric": "Factual accuracy", "expected_score": 9.0},
             {"input": "Capital of Australia is Sydney.", "rubric": "Factual accuracy", "expected_score": 3.0},
@@ -149,7 +150,7 @@ def test_cli_self_optimize_lifecycle(tmp_path):
     tests = _write_selfopt_tests(tmp_path)
     db = tmp_path / "selfopt.db"
 
-    with patch("abx.cli.DeepSeekClient", return_value=make_fake_deepseek()):
+    with patch("abx.cli.make_client", return_value=make_fake_claude()):
         r = runner.invoke(app, [
             "self-optimize",
             "--tests", str(tests),
@@ -188,7 +189,7 @@ def test_cli_self_eval_compare(tmp_path):
     # First: build an experiment with winners via self-optimize
     tests = _write_selfopt_tests(tmp_path)
     db = tmp_path / "cmp.db"
-    with patch("abx.cli.DeepSeekClient", return_value=make_fake_deepseek()):
+    with patch("abx.cli.make_client", return_value=make_fake_claude()):
         r = runner.invoke(app, [
             "self-optimize",
             "--tests", str(tests),
@@ -204,7 +205,7 @@ def test_cli_self_eval_compare(tmp_path):
     exp_id = storage.list_experiments()[0]["id"]
 
     # Now compare baseline vs optimized
-    with patch("abx.cli.DeepSeekClient", return_value=make_fake_deepseek()):
+    with patch("abx.cli.make_client", return_value=make_fake_claude()):
         r = runner.invoke(app, [
             "self-eval-compare",
             "--experiment-id", exp_id,
@@ -220,6 +221,7 @@ def test_cli_generate_tests_mocked(tmp_path):
     """generate-tests writes a valid tests.json via mocked LLM."""
     out = tmp_path / "gen_tests.json"
     fake = MagicMock()
+    fake.model = "haiku"
     resp = MagicMock()
     resp.content = json.dumps({
         "test_cases": [
@@ -229,7 +231,7 @@ def test_cli_generate_tests_mocked(tmp_path):
     })
     fake.chat.return_value = resp
 
-    with patch("abx.cli.DeepSeekClient", return_value=fake):
+    with patch("abx.cli.make_client", return_value=fake):
         r = runner.invoke(app, [
             "generate-tests",
             "--system-prompt", "You are a helpful assistant",

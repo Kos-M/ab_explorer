@@ -13,7 +13,7 @@ from rich.table import Table
 
 from .experiment import ExperimentRunner
 from .kpi import find_best_candidate
-from .llm import DeepSeekClient
+from .llm import PROVIDERS, make_client
 from .models import Experiment, ExperimentConfig, TestCase, TestSuite
 from .self_optimizer import SelfOptimizationRunner
 from .storage import Storage
@@ -25,6 +25,19 @@ app = typer.Typer(
     help="A/B testing CLI tool for prompt optimization using genetic algorithms",
 )
 console = Console()
+
+
+PROVIDER_HELP = f"LLM provider: {' | '.join(PROVIDERS)} (default: $ABX_PROVIDER or claude)"
+MODEL_HELP = "Model name; empty uses the provider default (claude: haiku, deepseek: deepseek-v4-flash)"
+
+
+def _make_llm(provider: str, model: str):
+    """Build the LLM client or exit with a readable error."""
+    try:
+        return make_client(provider, model)
+    except ValueError as e:
+        console.print(f"[red]✗ {e}[/]")
+        raise typer.Exit(code=1)
 
 
 @app.callback()
@@ -63,7 +76,7 @@ def init(
     test_suite = TestSuite(
         task_description=data.get("task_description", task),
         test_cases=[TestCase(**tc) for tc in data.get("test_cases", [])],
-        evaluation_model=data.get("evaluation_model", "deepseek-v4-flash"),
+        evaluation_model=data.get("evaluation_model", "haiku"),
     )
 
     if not test_suite.test_cases:
@@ -106,8 +119,11 @@ def run(
     population_size: int = typer.Option(
         5, "--population", "-p", help="Population size per generation"
     ),
+    provider: str = typer.Option(
+        "", "--provider", help=PROVIDER_HELP
+    ),
     model: str = typer.Option(
-        "deepseek-v4-flash", "--model", "-m", help="DeepSeek model name"
+        "", "--model", "-m", help=MODEL_HELP
     ),
     db: str = typer.Option(
         "ab_explorer.db", "--db", "-d", help="SQLite database path"
@@ -139,7 +155,6 @@ def run(
     # Override config with CLI args
     experiment.config.cycles = cycles
     experiment.config.population_size = population_size
-    experiment.config.model = model
     experiment.config.plateau_threshold = plateau_threshold
     experiment.config.plateau_rounds = plateau_rounds
     experiment.config.kpi_weights = {
@@ -149,12 +164,8 @@ def run(
     }
 
     # Initialize LLM client
-    try:
-        llm = DeepSeekClient(model=model)
-    except ValueError as e:
-        console.print(f"[red]✗ {e}[/]")
-        console.print("  Set DEEPSEEK_API_KEY environment variable or ensure it's configured.")
-        raise typer.Exit(code=1)
+    llm = _make_llm(provider, model)
+    experiment.config.model = llm.model
 
     # Run experiment
     runner = ExperimentRunner(experiment, storage, llm)
@@ -308,8 +319,11 @@ def generate_tests(
     count: int = typer.Option(
         5, "--count", "-c", help="Number of test cases to generate", min=1, max=20
     ),
+    provider: str = typer.Option(
+        "", "--provider", help=PROVIDER_HELP
+    ),
     model: str = typer.Option(
-        "deepseek-v4-flash", "--model", "-m", help="DeepSeek model for test generation"
+        "", "--model", "-m", help=MODEL_HELP
     ),
 ):
     """Generate a tests.json file from existing prompts using LLM.
@@ -327,12 +341,7 @@ def generate_tests(
         raise typer.Exit(code=1)
 
     # Initialize LLM client
-    try:
-        llm = DeepSeekClient(model=model)
-    except ValueError as e:
-        console.print(f"[red]✗ {e}[/]")
-        console.print("  Set DEEPSEEK_API_KEY environment variable or ensure it's configured.")
-        raise typer.Exit(code=1)
+    llm = _make_llm(provider, model)
 
     console.print("[bold cyan]Generating test cases from prompts...[/]")
     console.print(f"  Task: {task}")
@@ -347,7 +356,7 @@ def generate_tests(
             system_prompt=system_prompt_text,
             user_prompt=user_prompt_text,
             count=count,
-            model=model,
+            model=llm.model,
         )
     except ValueError as e:
         console.print(f"[red]✗ Failed to generate test suite: {e}[/]")
@@ -385,8 +394,11 @@ def self_optimize(
     population_size: int = typer.Option(
         8, "--population", "-p", help="Population size per generation"
     ),
+    provider: str = typer.Option(
+        "", "--provider", help=PROVIDER_HELP
+    ),
     model: str = typer.Option(
-        "deepseek-v4-flash", "--model", "-m", help="DeepSeek model name"
+        "", "--model", "-m", help=MODEL_HELP
     ),
     accuracy_weight: float = typer.Option(
         0.6, "--accuracy-weight", help="KPI accuracy weight (primary)"
@@ -421,7 +433,7 @@ def self_optimize(
     test_suite = TestSuite(
         task_description=data.get("task_description", task or "Evaluate AI responses against rubrics"),
         test_cases=[TestCase(**tc) for tc in data.get("test_cases", [])],
-        evaluation_model=data.get("evaluation_model", "deepseek-v4-flash"),
+        evaluation_model=data.get("evaluation_model", "haiku"),
     )
 
     if not test_suite.test_cases:
@@ -443,7 +455,6 @@ def self_optimize(
     # Set config
     experiment.config.cycles = cycles
     experiment.config.population_size = population_size
-    experiment.config.model = model
     experiment.config.plateau_threshold = plateau_threshold
     experiment.config.plateau_rounds = plateau_rounds
     experiment.config.kpi_weights = {
@@ -453,12 +464,8 @@ def self_optimize(
     }
 
     # Initialize LLM client
-    try:
-        llm = DeepSeekClient(model=model)
-    except ValueError as e:
-        console.print(f"[red]✗ {e}[/]")
-        console.print("  Set DEEPSEEK_API_KEY environment variable or ensure it's configured.")
-        raise typer.Exit(code=1)
+    llm = _make_llm(provider, model)
+    experiment.config.model = llm.model
 
     # Save experiment
     storage = Storage(db_path=db)
@@ -495,8 +502,11 @@ def self_eval_compare(
     db: str = typer.Option(
         "ab_explorer.db", "--db", "-d", help="SQLite database path"
     ),
+    provider: str = typer.Option(
+        "", "--provider", help=PROVIDER_HELP
+    ),
     model: str = typer.Option(
-        "deepseek-v4-flash", "--model", "-m", help="DeepSeek model name"
+        "", "--model", "-m", help=MODEL_HELP
     ),
 ):
     """Compare the winning EVAL_SYSTEM_PROMPT against the baseline."""
@@ -511,12 +521,8 @@ def self_eval_compare(
         console.print("[red]✗ Experiment has no test suite[/]")
         raise typer.Exit(code=1)
 
-    # Initialize LLM
-    try:
-        llm = DeepSeekClient(model=model)
-    except ValueError as e:
-        console.print(f"[red]✗ {e}[/]")
-        raise typer.Exit(code=1)
+    # Initialize LLM client
+    llm = _make_llm(provider, model)
 
     # Get winning candidate
     winners = storage.get_winners(experiment_id)

@@ -13,7 +13,7 @@ from rich.table import Table
 
 from .evaluator import evaluate_candidate
 from .kpi import find_best_candidate, score_population
-from .llm import DeepSeekClient
+from .llm import LLMClient
 from .models import (
     Candidate,
     Experiment,
@@ -35,7 +35,7 @@ class ExperimentRunner:
         self,
         experiment: Experiment,
         storage: Storage,
-        llm_client: DeepSeekClient,
+        llm_client: LLMClient,
     ):
         self.experiment = experiment
         self.storage = storage

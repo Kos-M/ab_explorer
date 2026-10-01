@@ -16,7 +16,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .evaluator import EVAL_USER_PROMPT, evaluate_candidate, parse_score
-from .llm import DeepSeekClient, LLMResponse
+from .llm import LLMClient, LLMResponse
 from .models import (
     Candidate,
     Experiment,
@@ -128,7 +128,7 @@ def _parse_json_response(text: str):
 
 
 def generate_initial_eval_population(
-    llm_client: DeepSeekClient,
+    llm_client: LLMClient,
     task_description: str,
     population_size: int = 8,
     baseline_prompt: str = "",
@@ -186,7 +186,7 @@ def generate_initial_eval_population(
 
 
 def evaluate_eval_prompt(
-    llm_client: DeepSeekClient,
+    llm_client: LLMClient,
     eval_system_prompt: str,
     test_case: TestCase,
     task_description: str,
@@ -229,7 +229,7 @@ def evaluate_eval_prompt(
 
 
 def evaluate_eval_candidate(
-    llm_client: DeepSeekClient,
+    llm_client: LLMClient,
     candidate: Candidate,
     test_suite: TestSuite,
 ) -> Candidate:
@@ -303,7 +303,7 @@ def compute_selfopt_composite_score(
 
 
 def mutate_eval_prompt(
-    llm_client: DeepSeekClient,
+    llm_client: LLMClient,
     candidate: Candidate,
     task_description: str,
     mutation_rate: float = 0.3,
@@ -352,7 +352,7 @@ def crossover_eval_prompts(
     parent_a: Candidate,
     parent_b: Candidate,
     task_description: str,
-    llm_client: DeepSeekClient = None,
+    llm_client: LLMClient = None,
 ) -> Candidate:
     """Create a child eval prompt by combining two parents."""
     if llm_client:
@@ -393,7 +393,7 @@ def crossover_eval_prompts(
 
 
 def evolve_eval_population(
-    llm_client: DeepSeekClient,
+    llm_client: LLMClient,
     population: list[Candidate],
     task_description: str,
     config: ExperimentConfig,
@@ -434,7 +434,7 @@ class SelfOptimizationRunner:
         self,
         experiment: Experiment,
         storage: Storage,
-        llm_client: DeepSeekClient,
+        llm_client: LLMClient,
     ):
         self.experiment = experiment
         self.storage = storage

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from abx.experiment import ExperimentRunner
-from abx.llm import DeepSeekClient
+from abx.llm import ClaudeCLIClient
 from abx.models import (
     Candidate,
     Experiment,

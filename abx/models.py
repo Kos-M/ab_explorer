@@ -35,7 +35,7 @@ class TestSuite(BaseModel):
     __test__ = False  # Prevent pytest from collecting this Pydantic model as a test class
     task_description: str
     test_cases: list[TestCase]
-    evaluation_model: str = "deepseek-v4-flash"
+    evaluation_model: str = "haiku"
 
 
 class Candidate(BaseModel):
@@ -59,7 +59,7 @@ class Candidate(BaseModel):
 
 class ExperimentConfig(BaseModel):
     """Configuration for an optimization experiment."""
-    model: str = "deepseek-v4-flash"
+    model: str = "haiku"
     system_prompt: str = ""  # Optional system prompt template (file-path-aware)
     cycles: int = 20
     population_size: int = 5

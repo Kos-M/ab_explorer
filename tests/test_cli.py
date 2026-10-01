@@ -24,7 +24,7 @@ def test_init_with_valid_file():
     tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
     json.dump({
         "task_description": "Extract dates",
-        "evaluation_model": "deepseek-v4-flash",
+        "evaluation_model": "haiku",
         "test_cases": [
             {"input": "March 5, 2024", "rubric": "Must extract date"},
         ],
@@ -51,7 +51,7 @@ def test_init_empty_test_cases():
     tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
     json.dump({
         "task_description": "Test",
-        "evaluation_model": "deepseek-v4-flash",
+        "evaluation_model": "haiku",
         "test_cases": [],
     }, tmp)
     tmp.close()
@@ -226,8 +226,16 @@ def test_report_shows_stats():
     os.unlink(db.name)
 
 
-def test_generate_tests_long_inline_prompt_no_oserror():
+def _no_claude_cli(monkeypatch):
+    """Make ClaudeCLIClient init fail so no real `claude` subprocess runs."""
+    monkeypatch.delenv("ABX_CLAUDE_CLI", raising=False)
+    monkeypatch.delenv("ABX_PROVIDER", raising=False)
+    monkeypatch.setattr("abx.llm.shutil.which", lambda _: None)
+
+
+def test_generate_tests_long_inline_prompt_no_oserror(monkeypatch):
     """Long inline system_prompt should NOT raise OSError in generate_tests."""
+    _no_claude_cli(monkeypatch)
     long_prompt = "Be helpful. " * 200  # ~3000 chars — exceeds NAME_MAX on most FS
     result = runner.invoke(app, [
         "generate-tests",
@@ -237,13 +245,14 @@ def test_generate_tests_long_inline_prompt_no_oserror():
         "--output", "/tmp/test_long_prompt.json",
         "--count", "1",
     ])
-    # Should NOT crash with OSError; LLM client init may fail but that's ValueError
+    # Should NOT crash with OSError; LLM client init fails with ValueError instead
     assert "OSError" not in result.stdout
     assert result.exit_code != 0  # Will fail at LLM init, but not at resolution
 
 
-def test_generate_tests_long_user_prompt_no_oserror():
+def test_generate_tests_long_user_prompt_no_oserror(monkeypatch):
     """Long inline user_prompt should NOT raise OSError in generate_tests."""
+    _no_claude_cli(monkeypatch)
     long_prompt = "Summarize. " * 200  # ~3000 chars
     result = runner.invoke(app, [
         "generate-tests",
