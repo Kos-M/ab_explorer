@@ -9,7 +9,7 @@ ab_explorer/
 │   ├── evaluator.py      # Rubric-based LLM evaluation
 │   ├── experiment.py     # Core GA optimization loop
 │   ├── kpi.py            # Composite KPI scoring
-│   ├── llm.py            # DeepSeek Flash adapter
+│   ├── llm.py            # LLM clients (Claude CLI + DeepSeek)
 │   ├── models.py         # Pydantic data models
 │   ├── population.py     # Population generation + GA mutation
 │   ├── self_optimizer.py # GA meta-optimization of EVAL_SYSTEM_PROMPT
@@ -36,7 +36,7 @@ ab_explorer/
 ## Tech Stack
 - **Language**: Python 3.11+
 - **CLI**: Typer + Rich
-- **HTTP**: httpx
+- **LLM**: Claude Code CLI (`claude -p` subprocess) or DeepSeek over httpx
 - **Models**: Pydantic v2
 - **Storage**: SQLite (stdlib)
 - **Testing**: pytest
@@ -59,7 +59,9 @@ pytest --cov=abx
 ```
 
 ## Design Decisions
-- **Single LLM**: DeepSeek Flash only (no abstract adapter yet)
+- **LLM providers**: picked per command with `--provider claude|deepseek` (or `$ABX_PROVIDER`; default `claude`) via `llm.make_client`. Both clients satisfy the `LLMClient` protocol (`.model`, `.chat(system_prompt, user_prompt, temperature, max_tokens)`).
+  - `ClaudeCLIClient` shells out to `claude -p` (system prompt via `--system-prompt-file`, user prompt on stdin, tools disabled, empty temp cwd). No API key. The CLI has no temperature/max_tokens controls, so those args are ignored.
+  - `DeepSeekClient` calls the chat completions API with `DEEPSEEK_API_KEY`; honours temperature/max_tokens.
 - **KPI**: Composite with configurable weights (accuracy:cost:latency)
 - **Evaluation**: Rubric-based (LLM scores output against rubric on 0-10)
 - **Population**: Fully synthetic (LLM generates candidates from task description)

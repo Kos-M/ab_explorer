@@ -31,7 +31,9 @@ abx report --experiment-id <id> --winner-only
 ### Prerequisites
 
 - Python 3.11+
-- A [DeepSeek](https://platform.deepseek.com/) API key
+- An LLM provider, chosen per command with `--provider`:
+  - `claude` (default): [Claude Code](https://claude.com/claude-code) installed and logged in (`claude` on your PATH). Calls run through `claude -p`; no API key needed.
+  - `deepseek`: a [DeepSeek](https://platform.deepseek.com/) API key in `DEEPSEEK_API_KEY`.
 
 ### Install
 
@@ -46,12 +48,9 @@ source venv/bin/activate
 
 # Install with dev dependencies
 pip install -e ".[dev]"
-
-# Set your API key
-export DEEPSEEK_API_KEY="your-key-here"
 ```
 
-Optional: add `DEEPSEEK_BASE_URL` or `DEEPSEEK_MODEL` to customize the API endpoint.
+Optional: set `ABX_PROVIDER=deepseek` to make DeepSeek the default instead of passing `--provider deepseek` each time. See [Environment Variables](#environment-variables) for per-provider settings.
 
 ---
 
@@ -64,7 +63,7 @@ Create a JSON file with your task description and test cases:
 ```json
 {
   "task_description": "Extract calendar dates from text",
-  "evaluation_model": "deepseek-chat",
+  "evaluation_model": "haiku",
   "test_cases": [
     {
       "input": "The meeting is on March 5, 2024 at 3pm.",
@@ -227,7 +226,8 @@ Run the optimization loop for an existing experiment.
 | `--experiment-id` | `-e` | string | *required* | Experiment ID to run |
 | `--cycles` | `-c` | int | `20` | Maximum optimization cycles |
 | `--population` | `-p` | int | `5` | Population size per generation |
-| `--model` | `-m` | string | `deepseek-chat` | DeepSeek model name |
+| `--provider` | | string | `claude` | LLM provider: `claude` or `deepseek` (falls back to `$ABX_PROVIDER`) |
+| `--model` | `-m` | string | provider default | Model name (claude: `haiku`/`sonnet`/`opus` or full id; deepseek: `deepseek-v4-flash`) |
 | `--db` | `-d` | string | `ab_explorer.db` | SQLite database path |
 | `--accuracy-weight` | | float | `0.5` | KPI accuracy weight |
 | `--cost-weight` | | float | `0.3` | KPI cost weight |
@@ -264,7 +264,8 @@ Generate a test suite JSON file from existing prompts using LLM.
 | `--user-prompt` | `-u` | string | *required* | User prompt (inline text or path to a `.txt` file) |
 | `--output` | `-o` | string | `tests.json` | Output path for the generated test suite |
 | `--count` | `-c` | int | `5` | Number of test cases to generate (1–20) |
-| `--model` | `-m` | string | `deepseek-v4-flash` | DeepSeek model for test generation |
+| `--provider` | | string | `claude` | LLM provider: `claude` or `deepseek` (falls back to `$ABX_PROVIDER`) |
+| `--model` | `-m` | string | provider default | Model for test generation |
 
 ---
 
@@ -275,7 +276,7 @@ The test suite file defines the task and evaluation rubric:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `task_description` | string | yes | High-level description of the task |
-| `evaluation_model` | string | no | Model used for evaluation (default: `deepseek-chat`) |
+| `evaluation_model` | string | no | Model used for evaluation (default: `haiku`) |
 | `test_cases` | array | yes | Array of test case objects (min 1) |
 
 Each test case:
@@ -315,8 +316,8 @@ Each test case:
                            ▼
                     ┌──────────────┐
                     │  LLM Client  │
-                    │  (DeepSeek   │
-                    │   Flash)     │
+                    │ claude -p or │
+                    │  DeepSeek)   │
                     └──────┬───────┘
                            │
                            ▼
@@ -336,7 +337,7 @@ Each test case:
 | `population.py` | GA operations | Initial generation, tournament selection, crossover, mutation, evolution |
 | `evaluator.py` | Rubric scoring | Evaluates each candidate's output against test case rubrics via LLM |
 | `kpi.py` | Composite scoring | Computes weighted KPI: accuracy * cost * latency |
-| `llm.py` | LLM adapter | DeepSeek Flash client with `httpx`, token tracking, and cost calculation |
+| `llm.py` | LLM adapter | `make_client(provider, model)` factory over two clients: `ClaudeCLIClient` (`claude -p` subprocess, cost/tokens from its JSON output) and `DeepSeekClient` (`httpx` chat completions, cost from DeepSeek pricing) |
 | `storage.py` | Persistence | SQLite CRUD for experiments, candidates, test results, and winners |
 | `test_generator.py` | Test generation | Generates `TestSuite` from existing prompts using LLM via `generate_test_suite()` |
 | `utils.py` | Utilities | Helper functions including `resolve_system_prompt()` for file-or-inline prompt resolution |
@@ -396,15 +397,18 @@ Each test case:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DEEPSEEK_API_KEY` | — | *Required.* DeepSeek API key |
-| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | Custom API base URL |
-| `DEEPSEEK_MODEL` | `deepseek-chat` | Model name override |
+| `ABX_PROVIDER` | `claude` | Default provider when `--provider` is not given |
+| `ABX_CLAUDE_MODEL` | `haiku` | claude: default model when `--model` is empty |
+| `ABX_CLAUDE_CLI` | `claude` on PATH | claude: path to the Claude Code CLI binary |
+| `DEEPSEEK_API_KEY` | — | deepseek: *required* API key |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | deepseek: custom API base URL |
+| `DEEPSEEK_MODEL` | `deepseek-v4-flash` | deepseek: default model when `--model` is empty |
 
 ### ExperimentConfig (Default)
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `model` | `deepseek-chat` | LLM model for generation |
+| `model` | `haiku` | LLM model for generation (set from the client actually used) |
 | `cycles` | `20` | Maximum generations |
 | `population_size` | `5` | Candidates per generation |
 | `tournament_size` | `3` | Candidates in each tournament |
@@ -460,7 +464,7 @@ ab_explorer/
 │   ├── evaluator.py      # Rubric-based LLM evaluation
 │   ├── experiment.py     # Core GA optimization loop
 │   ├── kpi.py            # Composite KPI scoring
-│   ├── llm.py            # DeepSeek Flash adapter
+│   ├── llm.py            # LLM clients (Claude CLI + DeepSeek)
 │   ├── models.py         # Pydantic data models
 │   ├── population.py     # Population generation + GA mutation
 │   ├── storage.py        # SQLite persistence
