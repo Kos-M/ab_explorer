@@ -500,13 +500,19 @@ class SelfOptimizationRunner:
                     self.experiment.id, best.id, rank=1, generation=gen
                 )
 
+            # Record the generation we've completed — must happen before the
+            # convergence check so a converged run reports the actual
+            # generation where the plateau was detected (not gen-1).
+            self.experiment.current_generation = gen
+
             # Check convergence
             if self._check_convergence(config):
                 console.print(f"[bold green]✓ Converged at generation {gen}![/]")
                 self.experiment.status = ExperimentStatus.CONVERGED
+                self.experiment.updated_at = datetime.now()
+                self.storage.save_experiment(self.experiment)
                 break
 
-            self.experiment.current_generation = gen
             self.experiment.updated_at = datetime.now()
             self.storage.save_experiment(self.experiment)
 

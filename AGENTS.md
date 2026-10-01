@@ -12,6 +12,7 @@ ab_explorer/
 │   ├── llm.py            # DeepSeek Flash adapter
 │   ├── models.py         # Pydantic data models
 │   ├── population.py     # Population generation + GA mutation
+│   ├── self_optimizer.py # GA meta-optimization of EVAL_SYSTEM_PROMPT
 │   ├── storage.py        # SQLite persistence
 │   ├── test_generator.py # Test case generation from prompts
 │   └── utils.py          # Utility functions
