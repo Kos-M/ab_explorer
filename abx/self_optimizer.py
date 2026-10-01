@@ -15,7 +15,7 @@ from datetime import datetime
 from rich.console import Console
 from rich.table import Table
 
-from .evaluator import EVAL_USER_PROMPT, evaluate_candidate
+from .evaluator import EVAL_USER_PROMPT, evaluate_candidate, parse_score
 from .llm import DeepSeekClient, LLMResponse
 from .models import (
     Candidate,
@@ -209,21 +209,10 @@ def evaluate_eval_prompt(
         max_tokens=512,
     )
 
-    # Parse score from evaluator response
-    score = 5.0
-    try:
-        parsed = json.loads(score_response.content)
-        if isinstance(parsed, dict):
-            score = float(parsed.get("score", 5))
-        elif isinstance(parsed, (int, float)):
-            score = float(parsed)
-    except (json.JSONDecodeError, ValueError, TypeError):
-        pass
-
-    score = max(0.0, min(10.0, score))
+    score = parse_score(score_response.content)
 
     # Compute accuracy vs expected score
-    expected = test_case.expected_score or 5.0
+    expected = 5.0 if test_case.expected_score is None else test_case.expected_score
     error = abs(score - expected)
     accuracy = max(0.0, 1.0 - error / 10.0)
 

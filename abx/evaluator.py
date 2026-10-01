@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -32,6 +33,42 @@ Response: {response}
 Rubric: {rubric}
 
 Output a JSON object with keys: "score", "reasoning", "consistent". Do not include any extra text."""
+
+
+_FENCE_RE = re.compile(r"^```[a-zA-Z]*\s*\n?(.*?)\n?```$", re.DOTALL)
+
+
+def parse_score(content: str, default: float = 5.0) -> float:
+    """Extract the 0-10 score from a judge reply, clamped.
+
+    Accepts a bare JSON object or number, optionally wrapped in a markdown
+    code fence (the Claude CLI usually fences JSON), or a JSON object embedded
+    in surrounding text. Falls back to `default` when nothing parses.
+    """
+    text = content.strip()
+    fenced = _FENCE_RE.match(text)
+    if fenced:
+        text = fenced.group(1).strip()
+
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        try:
+            parsed = json.loads(match.group()) if match else None
+        except json.JSONDecodeError:
+            parsed = None
+
+    score = default
+    try:
+        if isinstance(parsed, dict):
+            score = float(parsed.get("score", default))
+        elif isinstance(parsed, (int, float)):
+            score = float(parsed)
+    except (ValueError, TypeError):
+        pass
+
+    return max(0.0, min(10.0, score))
 
 
 @dataclass
@@ -76,18 +113,7 @@ def evaluate_test_case(
         temperature=0.2,
     )
 
-    # Parse score from evaluator response
-    score = 5.0  # Default mid-score
-    try:
-        parsed = json.loads(score_response.content)
-        if isinstance(parsed, dict):
-            score = float(parsed.get("score", 5))
-        elif isinstance(parsed, (int, float)):
-            score = float(parsed)
-    except (json.JSONDecodeError, ValueError, TypeError):
-        pass
-
-    score = max(0.0, min(10.0, score))  # Clamp 0-10
+    score = parse_score(score_response.content)
 
     return EvaluationResult(
         score=score,

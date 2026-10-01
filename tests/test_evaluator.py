@@ -3,7 +3,7 @@
 import json
 from unittest.mock import MagicMock
 
-from abx.evaluator import EvaluationResult, evaluate_candidate, evaluate_test_case
+from abx.evaluator import EvaluationResult, evaluate_candidate, evaluate_test_case, parse_score
 from abx.models import Candidate, PromptPair, TestCase, TestSuite
 
 
@@ -62,6 +62,35 @@ class TestEvaluateTestCase:
         )
         # Default mid-score 5.0 when JSON parsing fails
         assert result.score == 5.0
+
+
+class TestParseScore:
+    def test_bare_json(self):
+        assert parse_score('{"score": 7, "reasoning": "ok"}') == 7.0
+
+    def test_json_code_fence(self):
+        # The Claude CLI usually wraps JSON replies in a fence.
+        assert parse_score('```json\n{\n  "score": 3,\n  "reasoning": "x"\n}\n```') == 3.0
+
+    def test_plain_code_fence(self):
+        assert parse_score('```\n{"score": 2}\n```') == 2.0
+
+    def test_object_inside_text(self):
+        assert parse_score('Here is my verdict: {"score": 8} — done.') == 8.0
+
+    def test_bare_number(self):
+        assert parse_score("6") == 6.0
+
+    def test_zero_is_kept(self):
+        assert parse_score('{"score": 0}') == 0.0
+
+    def test_clamped(self):
+        assert parse_score('{"score": 14}') == 10.0
+        assert parse_score('{"score": -2}') == 0.0
+
+    def test_default_on_garbage(self):
+        assert parse_score("I cannot evaluate this") == 5.0
+        assert parse_score('{"score": "high"}') == 5.0
 
 
 class TestEvaluateCandidate:

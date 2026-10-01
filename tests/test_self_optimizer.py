@@ -165,6 +165,21 @@ class TestEvaluateEvalPrompt:
         assert result["score"] == 5.0
         assert result["accuracy"] == pytest.approx(0.5, abs=0.01)
 
+    def test_parses_fenced_json(self):
+        llm = make_eval_llm(eval_score=7.0)
+        llm.chat.return_value.content = '```json\n{"score": 3, "reasoning": "r"}\n```'
+        tc = TestCase(input="x", rubric="y", expected_score=3.0)
+        result = evaluate_eval_prompt(llm, "sys", tc, "task")
+        assert result["score"] == 3.0
+        assert result["accuracy"] == pytest.approx(1.0)
+
+    def test_expected_score_zero_is_not_treated_as_missing(self):
+        llm = make_eval_llm(eval_score=0.0)
+        tc = TestCase(input="x", rubric="y", expected_score=0.0)
+        result = evaluate_eval_prompt(llm, "sys", tc, "task")
+        assert result["expected"] == 0.0
+        assert result["accuracy"] == pytest.approx(1.0)
+
 
 class TestEvaluateEvalCandidate:
     def test_scores_all_test_cases(self):
