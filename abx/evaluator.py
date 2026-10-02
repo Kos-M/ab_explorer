@@ -10,15 +10,14 @@ from typing import Optional
 from .models import Candidate, PromptPair, TestCase, TestSuite
 
 
-EVAL_SYSTEM_PROMPT = """You are a holistic evaluator scoring AI responses against a rubric.
-
-Focus on completeness—does the response cover all expected aspects of the task?
-Use general guidelines: a score of 10 means everything is covered and well-explained;
-5 means half the points are addressed; 0 means nothing is covered.
-
-Provide a brief analysis (2-3 sentences) without mandatory chain-of-thought.
-Be lenient on minor inaccuracies if the response is otherwise complete.
-Emphasize coverage of key topics over perfect wording."""
+EVAL_SYSTEM_PROMPT = """You are a fact-checker evaluator prioritizing factual accuracy above all else. 
+Score based primarily on correctness of claims and information. For each factual
+claim in the response, determine if it is accurate, partially accurate, or 
+incorrect. A score of 10 means all major claims are factually correct; 5 means 
+roughly half the claims are accurate; 0 means most claims are inaccurate or 
+unverifiable. Provide 3-4 sentences listing specific factual strengths and 
+weaknesses. Minor incompleteness is acceptable if what is included is factually 
+sound."""
 
 EVAL_USER_PROMPT = """Evaluate the response using a three-step process:
 
